@@ -26,18 +26,42 @@ title('Input and Output')
 subplot(2,1,2)
 plot(time,y,'linewidth',1.5)
 xlabel('Time [s]')
-ylabel('Output []')
+ylabel('Output []') 
 legend('x','y')
 
 %% Q1 
 K = [0.1389, 0; 0, 0.2731];                                 % Stiffnes matrix 
-B0 = [dx^2 * Km/R, -dx^2*Km/R; dy^2*Km/R, dy^2*Km/R];       % Mapping from voltage to torque 
+B0 = [dx*dx*2 * Km/R, -dx*dx*Km/R; dy*dy*Km/R, dy*dy*Km/R];       % Mapping from voltage to torque 
 C0 = [0.01, 0; 0, 0.01];                                    % Measurement martix
-D = [dx^2*Km^2/R, dx^2*Km^2/R; dy^2*Km^2/R, dy^2*Km^2/R];   % Damping matrix
+D0 = [dx*dx*Km^2/R, dx*dx*Km^2/R; dy*dy*Km^2/R, dy*dy*Km^2/R];  % Damping matrix
 Mass_supp = 0.0243;                                         % Mass of the support
 J_s = 1/12*Mass_supp*(plate_dim(1)^2+plate_dim(3)^2);       % Support Inertia
-M = [J_s+coil_m*dy^2*2, 0;0, J_s+coil_m*2*dx^2];                % Inertia Matrix
+M = [J_s+coil_m*dy*dy*2, 0;0, J_s+coil_m*2*dx*dx];            % Inertia Matrix
 
-%ppeneeeeeeeeeeeeeeeeee
+%% STATE SPACE
+A = [-M\D0, -M\K;
+     1 0 0 0;
+     0 1 0 0];
+B = [-M\B0; zeros(2)];
+C = [0 0 0.01 0;0 0 0 0.01];
+D = zeros(2);
+
+Input = [time',u];
+sim model.slx;
+%% 
+figure()
+subplot(2,1,1)
+plot(time,y(:,1),'linewidth',1.5)
+hold on 
+plot(time,out.Output(:,1),'linewidth',1.5)
+ylabel('Input []')
+title('Output Comparison')
+subplot(2,1,2)
+plot(time,y(:,2),'linewidth',1.5)
+hold on 
+plot(time,out.Output(:,2),'linewidth',1.5)
+xlabel('Time [s]')
+ylabel('Output []') 
+legend('sensor1','sensor2')
 
 
