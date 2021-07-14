@@ -38,6 +38,6 @@ Mass_supp = 0.0243;                                         % Mass of the suppor
 J_s = 1/12*Mass_supp*(plate_dim(1)^2+plate_dim(3)^2);       % Support Inertia
 M = [J_s+coil_m*dy^2*2, 0;0, J_s+coil_m*2*dx^2];                % Inertia Matrix
 
-
+%ppeneeeeeeeeeeeeeeeeee
 
 
