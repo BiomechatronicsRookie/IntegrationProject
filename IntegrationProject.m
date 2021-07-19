@@ -149,6 +149,12 @@ hold on
 bodeplot(T_2)
 legend('OpenLoop(L2)','ClosedLoop(T2)')
 
+%Feedforward assuming perfect stifness means LF only interaction.
+
+F1= G1.Denominator{1}(3)/(G1.Numerator{1}(3));
+F2= G2.Denominator{1}(9)/(G2.Numerator{1}(9));
+
+
 %% Q7
 %Creation of data for SysIdent Toolbox
 data2= iddata(y,10*u,ts);
