@@ -60,15 +60,15 @@ sim('model.slx',max(time));
 %% 
 figure()
 subplot(2,1,1)
-plot(time,y(:,1),'linewidth',1.5)
+plot(y(:,1),'linewidth',1.5)
 hold on 
-plot(time,Output(:,1),'linewidth',1.5)
+plot(Output(:,1),'linewidth',1.5)
 ylabel('Input []')
 title('Sensor 1')
 subplot(2,1,2)
-plot(time,y(:,2),'linewidth',1.5)
+plot(y(:,2),'linewidth',1.5)
 hold on 
-plot(time,Output(:,2),'linewidth',1.5)
+plot(Output(:,2),'linewidth',1.5)
 xlabel('Time [s]')
 ylabel('Output []') 
 title('Sensor 2')
@@ -85,15 +85,15 @@ G1 = sys_dec(1,1);
 G2 = sys_dec(2,2);
 
 %% Profiles 
-u = 2;
+p = 2;
 dt = 2e-4;
 t = 0:dt:0.3;
 a = zeros(size(t));
-n = u/0.025;
+n = p/0.025;
 a(1:126) = t(1:126).*n;
-a(126:251) = u-t(1:126).*n;
+a(126:251) = p-t(1:126).*n;
 a(1001:1126) = -t(1:126).*n;
-a(1126:1251) = -u + t(1:126).*n;
+a(1126:1251) = -p + t(1:126).*n;
 v = zeros(size(a));
 x = zeros(size(a));
 
@@ -112,16 +112,33 @@ plot(t,a,'linewidth',1.5)
 
 
 %% Parallel PID controller
-meq1 = 1/G1.Numerator{1}(3);        % equivalent mass sys 1
-meq2 = 1/G2.Numerator{1}(3);        % equivalent mass sys21
-wc = 643.6596;                      % rad/s - crossover frequency for the controler
-beta = 1;                           % Tameness factor
-alpha = 0.1;                        % lead factor
-tz = sqrt((1/alpha))/wc;            % zero place
-ti = beta*tz;                       % Integral place
-tp = 1/(wc*sqrt(1/alpha));          % pole place
-kp1 = meq1 * wc*wc/sqrt(1/alpha);   % gain 1
-kp2 = meq2 * wc*wc/sqrt(1/alpha);   % gain 2
+%From the assignment data
+vel_max= 0.05; % m/s
+acc_max= 2; %m/s^2
+%Spot manipulation is 1/3 of spot diameter= 6 micrometers: 
+error_max= 6e-6;
+
+%The motion profile is Third order reference:
+% Vel_max= 2*h_m/tm
+% Acc_max= 8*h_m/tm^3
+%So h_m and t_m are:
+h_m= vel_max^2; %Also from the assignment is equal to 2.5 mm
+t_m= 2*vel_max;
+jerk_max= (32*h_m)/(t_m^3); % jerk_max= error_max in PID controller
+
+
+%Obtained from Paper 3 and ref from CDMS
+    
+meq1 = 1/G1.Numerator{1}(3);                        % equivalent mass sys 1
+meq2 = 1/G2.Numerator{1}(3);                        % equivalent mass sys21
+beta = 1;                                           % Tameness factor
+alpha = 0.1;                                        % lead factor
+wc = ((jerk_max*2*(1/alpha))/error_max )^(1/3);      % rad/s - crossover frequency for the controler  
+tz = sqrt((1/alpha))/wc;                            % zero place
+ti = beta*tz;                                       % Integral place
+tp = 1/(wc*sqrt(1/alpha));                          % pole place
+kp1 = meq1 * wc*wc/sqrt(1/alpha);                   % gain 1
+kp2 = meq2 * wc*wc/sqrt(1/alpha);                   % gain 2
 
 s= tf('s');
 Controller1 = kp1*(s*tz+1)*(s*ti+1)/(s*ti*(s*tp+1));
