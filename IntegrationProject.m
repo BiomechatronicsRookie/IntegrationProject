@@ -157,7 +157,7 @@ F2 = G2.Denominator{1}(5)/(G2.Numerator{1}(5));
 
 %% To simulink
 Ref1 = [t',x'];
-Ref2 = [t',zeros(size(x))'];
+Ref2 = [t',x'];
 
 sim('Model_Controlled.slx',max(t));
 figure()
@@ -166,15 +166,14 @@ plot(t,x,'LineWidth',1.5)
 ylabel('Amplitude [m]')
 title('Reference Signal')
 subplot(3,1,2)
-plot(Controlled1.Time,Controlled1.Data,'LineWidth',1.5)
+plot(t,Controlled1,'LineWidth',1.5)
 ylabel('Amplitude [m]')
 title('System Output')
 subplot(3,1,3)
-plot(Controlled1.Time,Controlled1.Data'-x,'LineWidth',1.5)
+plot(t,Controlled1-x','LineWidth',1.5)
 xlabel('Time [s]')
 ylabel('Amplitude [m]')
 title('Error')
-
 
 figure()
 subplot(3,1,1)
@@ -182,11 +181,11 @@ plot(t,Ref2(:,2),'LineWidth',1.5)
 ylabel('Amplitude [m]')
 title('Reference Signal')
 subplot(3,1,2)
-plot(Controlled2.Time,Controlled2.Data,'LineWidth',1.5)
+plot(t,Controlled2,'LineWidth',1.5)
 ylabel('Amplitude [m]')
 title('System Output')
 subplot(3,1,3)
-plot(Controlled2.Time,Controlled2.Data-Ref2(:,2),'LineWidth',1.5)
+plot(t,Controlled2-x','LineWidth',1.5)
 xlabel('Time [s]')
 ylabel('Amplitude [m]')
 title('Error')
