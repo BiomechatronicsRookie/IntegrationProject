@@ -5,7 +5,7 @@ clear all;close all;clc
 
 %% Parameter Definition
 load('iddatamir.mat')
-time = (0:1:length(u)-1)*ts;
+time = (0:1:length(u)-1)*ts;    
 Km = 0.3;                           % Motor Constant [N/A]
 R = 0.35;                           % Armature Resistance [Ohm]
 Motor_d = 0.022;                    % Motor diameter [m]
@@ -74,15 +74,28 @@ ylabel('Output []')
 title('Sensor 2')
 legend('Data','Sim')
 
-%% Decoupling 
-[Ty,Tu] = wadyadicd(sys,1,500,1);
-sys_dec = Ty*tf(sys)*Tu;
-sys_dec = minreal(sys_dec);
-
+%% Coupling analysis
+H = tf(sys);
+H = minreal(H);
+fq = evalfr(H,40);
+[U,S,V] = svd(fq);
+H_dec = U'*H*V;
+H_dec = minreal(H_dec);
 figure()
-bodeplot(sys_dec)
-G1 = sys_dec(1,1);
-G2 = sys_dec(2,2);
+bodeplot(H_dec);
+
+G1 = H_dec(1,1);
+G2 = H_dec(2,2);
+
+%% Decoupling 
+% [Ty,Tu] = wadyadicd(sys,1,500,1);
+% sys_dec = Ty*tf(sys)*Tu;
+% sys_dec = minreal(sys_dec);
+% 
+% figure()
+% bodeplot(sys_dec)
+% G1 = sys_dec(1,1);
+% G2 = sys_dec(2,2);
 
 %% Profiles 
 p = 2;
@@ -96,20 +109,23 @@ a(1001:1126) = -t(1:126).*n;
 a(1126:1251) = -p + t(1:126).*n;
 v = zeros(size(a));
 x = zeros(size(a));
+jrk = zeros(size(a));
 
 for i = 2:length(a)
     v(i) = v(i-1)+a(i-1)*dt;
     x(i) = x(i-1)+v(i-1)*dt;
+    jrk(i) = (a(i)-a(i-1))/dt;
 end
 
 figure()
-subplot(3,1,1)
+subplot(4,1,1)
 plot(t,x,'linewidth',1.5)
-subplot(3,1,2) 
+subplot(4,1,2) 
 plot(t,v,'linewidth',1.5)
-subplot(3,1,3) 
+subplot(4,1,3) 
 plot(t,a,'linewidth',1.5)
-
+subplot(4,1,4) 
+plot(t,jrk,'linewidth',1.5)
 
 %% Parallel PID controller
 %From the assignment data
@@ -133,7 +149,7 @@ meq1 = 1/G1.Numerator{1}(3);                        % equivalent mass sys 1
 meq2 = 1/G2.Numerator{1}(3);                        % equivalent mass sys21
 beta = 1;                                           % Tameness factor
 alpha = 0.1;                                        % lead factor
-wc = ((jerk_max*2*(1/alpha))/error_max )^(1/3);      % rad/s - crossover frequency for the controler  
+wc = ((jerk_max*2*(1/alpha))/error_max )^(1/3);     % rad/s - crossover frequency for the controler  
 tz = sqrt((1/alpha))/wc;                            % zero place
 ti = beta*tz;                                       % Integral place
 tp = 1/(wc*sqrt(1/alpha));                          % pole place
@@ -153,7 +169,26 @@ margin(G2*Controller2)
 grid on
 
 F1 = G1.Denominator{1}(3)/(G1.Numerator{1}(3));
-F2 = G2.Denominator{1}(5)/(G2.Numerator{1}(5));
+F2 = G2.Denominator{1}(3)/(G2.Numerator{1}(3));
+
+%% Predictive error
+Kj = beta/(alpha*wc^3);
+Ka1 = beta*(D0(1,1)/M(1,1))/(alpha*wc^3);
+Ka2 = beta*(D0(2,2)/M(2,2))/(alpha*wc^3);
+Kv1 = 0;
+Kv2 = 0;
+err_1 = Kj*jrk + Ka1*a + Kv1*v;
+err_2 = Kj*jrk + Ka2*a + Kv2*v;
+
+figure()
+subplot(2,1,1)
+plot(t,err_1,'linewidth',1.5)
+ylabel('Error [m]')
+subplot(2,1,2)
+plot(t,err_2,'linewidth',1.5)
+ylabel('Error [m]')
+xlabel('Time [s]')
+
 
 %% To simulink
 Ref1 = [t',x'];
@@ -170,7 +205,7 @@ plot(t,Controlled1,'LineWidth',1.5)
 ylabel('Amplitude [m]')
 title('System Output')
 subplot(3,1,3)
-plot(t,Controlled1-x','LineWidth',1.5)
+plot(t,x'-Controlled1,'LineWidth',1.5)
 xlabel('Time [s]')
 ylabel('Amplitude [m]')
 title('Error')
@@ -185,9 +220,90 @@ plot(t,Controlled2,'LineWidth',1.5)
 ylabel('Amplitude [m]')
 title('System Output')
 subplot(3,1,3)
-plot(t,Controlled2-x','LineWidth',1.5)
+plot(t,x'-Controlled2,'LineWidth',1.5)
 xlabel('Time [s]')
 ylabel('Amplitude [m]')
 title('Error')
+
+%% Comparison between simulated and predicted errors
+figure()
+subplot(2,1,1)
+plot(t,x'-Controlled1,'linewidth',1.5)
+hold on 
+plot(t,err_1,'linewidth',1.5)
+ylabel('Error [m]')
+title('X plane')
+subplot(2,1,2)
+plot(t,x'-Controlled2,'linewidth',1.5)
+hold on 
+plot(t,err_2,'linewidth',1.5)
+title('Y Plane')
+legend('Simulatd','Predicted')
+xlabel('Time [s]')
+ylabel('Error [m]')
+
+
+%% Controler discretisation 
+C1_d = c2d(Controller1,ts);
+C2_d = c2d(Controller2,ts);
+
+load('Order12.mat');
+% Use system identification to identify the plant in discrete time
+DataStructure = iddata(y,u,ts);
+%  systemIdentification
+figure()
+bodeplot(tf_sys)
+hold on
+bodeplot(Order12)
+
+%% Discrete system decoupling
+tf_sys_id = tf(Order12);
+tf_sys_id = minreal(tf_sys_id);
+
+[Ty,Tu] = wadyadicd(d2c(tf(Order12)),49,33,0);
+H_DYAD_dec = Ty*d2c(tf(Order12))*Tu;
+H_DYAD_dec = c2d(minreal(H_DYAD_dec),ts);
+
+fq = evalfr(tf_sys_id,49);
+[U,S,V] = svd(fq);
+H_SVD_dec = U'*H*V;
+H_SVD_dec = minreal(H_SVD_dec);
+figure()
+bodeplot(H_SVD_dec);
+
+G1_d = H_SVD_dec(1,1);
+G2_d = H_SVD_dec(2,2);
+
+figure()
+bodeplot(H)
+hold on
+bodeplot(tf_sys_id)
+bodeplot(H_SVD_dec)
+bodeplot(H_DYAD_dec)
+legend('Continous','Discrete','SVD Dec.','Dyad. Dec.')
+
+%% Discrete model
+sim('Discrete_Model_Controlled.slx',0.3)
+% Results plots
+figure()
+subplot(3,1,1)
+plot(t,Ref2(:,2))
+title('Reference Signal')
+ylabel('Amplitude [m]')
+subplot(3,1,2)
+plot(Discrete_Res(:,1))
+ylim([-0.01 0.01])
+ylabel('Amplitude [m]')
+subplot(3,1,3)
+plot(Discrete_Res(:,2))
+ylim([-0.01 0.01])
+ylabel('Amplitude [m]')
+
+% No stability, no robust stability(?)
+
+%% Check characteristic loci
+figure()
+pzmap(Order12) % Two poles on the right half plane --> unstable on its own
+
 
 
